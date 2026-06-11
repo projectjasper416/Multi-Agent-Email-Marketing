@@ -1,0 +1,27 @@
+# ── Core orchestration ────────────────────────────────────────────────
+# LangGraph is the multi-agent state machine: typed shared state, durable
+# checkpointing, native interrupt() for human-in-the-loop, conditional routing.
+langgraph>=0.2.50
+langgraph-checkpoint-postgres>=2.0.0   # PostgresSaver + AsyncPostgresStore
+
+# ── LLM ───────────────────────────────────────────────────────────────
+# Native Anthropic SDK used directly inside LangGraph nodes. No LangChain
+# LLM wrappers — LangGraph is provider-agnostic and we want clean tool-use.
+anthropic>=0.40.0
+
+# ── Database ──────────────────────────────────────────────────────────
+supabase>=2.4.0          # Customer Supabase reads/writes (service role key)
+psycopg[binary,pool]>=3.2.0   # Postgres driver for checkpointer + store
+
+# ── Email delivery (delivery Lambda only) ─────────────────────────────
+resend>=2.0.0
+
+# ── Telegram (raw HTTP, no SDK) ───────────────────────────────────────
+requests>=2.32.0
+
+# ── Observability ─────────────────────────────────────────────────────
+# LangSmith tracing is non-negotiable: every node, LLM call, tool call traced.
+langsmith>=0.1.0
+
+# ── Local dev convenience ─────────────────────────────────────────────
+python-dotenv>=1.0.0
