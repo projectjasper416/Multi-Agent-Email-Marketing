@@ -39,7 +39,10 @@ ANTHROPIC_API_KEY: str = _get("ANTHROPIC_API_KEY", "")
 # Pinned model id — no floating aliases. A model bump requires a side-by-side
 # decision-quality audit before changing this (TDD 2.2).
 MODEL: str = "claude-sonnet-4-6"
-MAX_TOKENS: int = 2048
+# Must comfortably fit the schema agent's one-shot submit_schema_map payload
+# (full schema_map.md + raw_signals array). 2048 truncated it mid-tool-call,
+# yielding empty args and zero signals. claude-sonnet-4-6 supports far more.
+MAX_TOKENS: int = 16384
 
 # ── Email ─────────────────────────────────────────────────────────────
 RESEND_API_KEY: str = _get("RESEND_API_KEY", "")
