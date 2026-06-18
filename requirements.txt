@@ -19,6 +19,12 @@ resend>=2.0.0
 # ── Telegram (raw HTTP, no SDK) ───────────────────────────────────────
 requests>=2.32.0
 
+# ── Onboarding web UI (web/app.py) ────────────────────────────────────
+# Thin async API + static wizard over onboarding/setup_flow.py. Async so the
+# endpoints await the setup functions directly. Not used by the Lambdas.
+fastapi>=0.110.0
+uvicorn>=0.29.0
+
 # ── Observability ─────────────────────────────────────────────────────
 # LangSmith tracing is non-negotiable: every node, LLM call, tool call traced.
 langsmith>=0.1.0

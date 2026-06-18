@@ -19,7 +19,10 @@ declare
     result jsonb;
 begin
     -- Guard: read-only. Reject anything that isn't a plain SELECT/WITH.
-    if not (lower(ltrim(query)) like 'select%' or lower(ltrim(query)) like 'with%') then
+    -- ltrim with an explicit char set so leading newlines/tabs (not just spaces)
+    -- are stripped — callers pass indented, multi-line query blocks.
+    if not (lower(ltrim(query, E' \t\n\r')) like 'select%'
+            or lower(ltrim(query, E' \t\n\r')) like 'with%') then
         raise exception 'exec_sql only permits read queries';
     end if;
 

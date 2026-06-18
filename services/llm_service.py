@@ -16,11 +16,21 @@ tools to call and when to stop; the orchestration code just executes and relays.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable
 
 from anthropic import Anthropic
+from langsmith.wrappers import wrap_anthropic
 
 import config
+
+logger = logging.getLogger("llm_service")
+if not logger.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
+    logger.addHandler(_h)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
 
 _client: Anthropic | None = None
 
@@ -30,7 +40,10 @@ def get_client() -> Anthropic:
     if _client is None:
         if not config.ANTHROPIC_API_KEY:
             raise RuntimeError("ANTHROPIC_API_KEY is required (planning Lambda only)")
-        _client = Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        # wrap_anthropic instruments the SDK so every messages.create call is
+        # traced to LangSmith (token counts, inputs/outputs, stop_reason) even
+        # outside a LangGraph run — e.g. the direct-call onboarding path.
+        _client = wrap_anthropic(Anthropic(api_key=config.ANTHROPIC_API_KEY))
     return _client
 
 
@@ -63,7 +76,7 @@ def run_tool_loop(
     stop_tool_input: dict | None = None
     final_text = ""
 
-    for _ in range(max_turns):
+    for turn in range(max_turns):
         resp = client.messages.create(
             model=config.MODEL,
             max_tokens=config.MAX_TOKENS,
@@ -76,11 +89,17 @@ def run_tool_loop(
         text_parts = [b.text for b in resp.content if b.type == "text"]
         if text_parts:
             final_text = "\n".join(text_parts)
+            logger.info("[turn %d] stop_reason=%s text: %s", turn, resp.stop_reason, final_text[:500])
 
         tool_uses = [b for b in resp.content if b.type == "tool_use"]
         if not tool_uses:
             # Claude answered with prose and no tool call -> conversation done.
+            logger.info("[turn %d] no tool call — loop ends without stop tool (stop_reason=%s)",
+                        turn, resp.stop_reason)
             break
+
+        for tu in tool_uses:
+            logger.info("[turn %d] tool_call: %s args=%s", turn, tu.name, _stringify(tu.input)[:300])
 
         # Echo the assistant turn back so the thread stays coherent.
         messages.append({"role": "assistant", "content": resp.content})
@@ -90,6 +109,7 @@ def run_tool_loop(
         for tu in tool_uses:
             handler = tool_handlers.get(tu.name)
             result = handler(tu.input) if handler else {"error": f"unknown tool {tu.name}"}
+            logger.info("[turn %d] tool_result %s -> %s", turn, tu.name, _stringify(result)[:500])
             if tu.name == stop_tool:
                 stop_tool_input = tu.input
                 reached_stop = True

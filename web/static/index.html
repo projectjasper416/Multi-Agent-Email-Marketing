@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Email Marketing — Onboarding</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">✉️</span>
+      <div>
+        <h1>AI Email Marketing</h1>
+        <p>Customer onboarding</p>
+      </div>
+    </div>
+  </header>
+
+  <ol class="steps" id="stepper">
+    <li class="step is-active" data-step="1"><span class="num">1</span> Product brief</li>
+    <li class="step" data-step="2"><span class="num">2</span> Schema analysis</li>
+    <li class="step" data-step="3"><span class="num">3</span> Review signals</li>
+  </ol>
+
+  <main>
+    <!-- ── Step 1: product form → generate_brief ───────────────────────── -->
+    <section class="panel" id="panel-1">
+      <h2>Tell us about your product</h2>
+      <p class="hint">These answers are synthesized by Claude into your
+        <code>product_context.md</code> — the brief every agent reasons from.</p>
+
+      <form id="brief-form">
+        <div class="grid">
+          <label>Customer ID
+            <input name="customer_id" required placeholder="acme" />
+            <small>Namespaces all of this customer's stored memory.</small>
+          </label>
+          <label>Brand name
+            <input name="brand_name" required placeholder="Acme" />
+          </label>
+          <label>From address
+            <input name="from_address" type="email" required placeholder="hello@acme.com" />
+          </label>
+          <label>Unsubscribe base URL
+            <input name="unsubscribe_base_url" type="url" required placeholder="https://acme.com/unsubscribe" />
+          </label>
+        </div>
+
+        <label>What does the product do?
+          <textarea name="product_description" rows="3" required
+            placeholder="One-paragraph description of the product and the core job it does for users."></textarea>
+        </label>
+
+        <label>Who are the users?
+          <textarea name="target_users" rows="2" required
+            placeholder="Who signs up, what they're trying to achieve, key segments."></textarea>
+        </label>
+
+        <label>Conversion model
+          <textarea name="conversion_model" rows="2" required
+            placeholder="Free vs premium tiers, what 'conversion' means, what a converted user has done."></textarea>
+        </label>
+
+        <div class="grid">
+          <label>Brand tone
+            <textarea name="brand_tone" rows="3"
+              placeholder="Voice and tone rules. e.g. warm, concise, no hype, no emojis."></textarea>
+          </label>
+          <label>Email hard rules
+            <textarea name="email_hard_rules" rows="3"
+              placeholder="Things the agent must NEVER do. e.g. never promise discounts, never email on weekends."></textarea>
+          </label>
+        </div>
+
+        <label>Exclusion rules
+          <textarea name="exclusion_rules" rows="2"
+            placeholder="Who should never be emailed. e.g. enterprise accounts, users who opted out, internal test users."></textarea>
+        </label>
+
+        <label>Anything else?
+          <textarea name="extra_context" rows="2"
+            placeholder="Optional. Anything else the agent should know."></textarea>
+        </label>
+
+        <div class="actions">
+          <button type="submit" class="primary">Generate brief →</button>
+        </div>
+      </form>
+
+      <div class="result" id="brief-result" hidden>
+        <h3>Generated product brief</h3>
+        <div class="doc" id="brief-doc"></div>
+        <div class="actions">
+          <button type="button" class="ghost" id="brief-edit">← Edit answers</button>
+          <button type="button" class="primary" id="to-analyze">Looks good — analyze schema →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 2: analyze_schema ──────────────────────────────────────── -->
+    <section class="panel" id="panel-2" hidden>
+      <h2>Discovering your database</h2>
+      <p class="hint">The Schema Intelligence Agent introspects your Supabase,
+        writes <code>schema_map.md</code>, and proposes behavioral signals it
+        could detect. No signal is active until you approve it.</p>
+
+      <div class="loader" id="analyze-loading">
+        <div class="spinner"></div>
+        <p>Analyzing schema and proposing signals… this can take a minute.</p>
+      </div>
+
+      <div class="result" id="analyze-result" hidden>
+        <p class="ok" id="analyze-count"></p>
+        <div class="actions">
+          <button type="button" class="primary" id="to-review">Review signals →</button>
+        </div>
+      </div>
+
+      <div class="result error-box" id="analyze-error" hidden>
+        <p class="err"></p>
+        <div class="actions">
+          <button type="button" class="ghost" id="analyze-retry">Retry</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 3: save_approved_signals ───────────────────────────────── -->
+    <section class="panel" id="panel-3" hidden>
+      <h2>Which signals should the agent watch?</h2>
+      <p class="hint">Toggle off anything you don't want. Approved signals become
+        the agent's <em>vocabulary</em> — they describe what it can notice, not
+        rigid send triggers.</p>
+
+      <div id="signals"></div>
+
+      <div class="actions">
+        <span class="count-pill" id="approve-count"></span>
+        <button type="button" class="primary" id="save-signals">Finish setup →</button>
+      </div>
+    </section>
+
+    <!-- ── Done ────────────────────────────────────────────────────────── -->
+    <section class="panel done-panel" id="panel-done" hidden>
+      <div class="check">✓</div>
+      <h2>Onboarding complete</h2>
+      <p id="done-summary"></p>
+      <p class="hint">The daily planning run will now use this customer's product
+        brief, schema map, and approved signals.</p>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
