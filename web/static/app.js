@@ -95,6 +95,20 @@ $("#to-analyze").addEventListener("click", () => {
   runAnalyze();
 });
 
+// Resume: skip Step 1 for a customer whose brief is already stored. Sets the
+// customer id and jumps straight to schema analysis — product_context is read
+// from the Store server-side, so the brief is never regenerated/overwritten.
+$("#resume-btn").addEventListener("click", () => {
+  const id = $("#resume-id").value.trim();
+  if (!id) {
+    alert("Enter the customer ID you onboarded (e.g. taskflow).");
+    return;
+  }
+  state.customerId = id;
+  goTo(2);
+  runAnalyze();
+});
+
 // ── Step 2: analyze schema ─────────────────────────────────────────────
 async function runAnalyze() {
   $("#analyze-loading").hidden = false;

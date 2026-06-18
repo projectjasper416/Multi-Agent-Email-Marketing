@@ -26,6 +26,12 @@
   <main>
     <!-- ── Step 1: product form → generate_brief ───────────────────────── -->
     <section class="panel" id="panel-1">
+      <div class="resume-box">
+        <span>Already generated a brief for this customer?</span>
+        <input id="resume-id" placeholder="taskflow" />
+        <button type="button" class="ghost" id="resume-btn">Resume → analyze schema</button>
+      </div>
+
       <h2>Tell us about your product</h2>
       <p class="hint">These answers are synthesized by Claude into your
         <code>product_context.md</code> — the brief every agent reasons from.</p>

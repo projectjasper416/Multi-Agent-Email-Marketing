@@ -206,3 +206,27 @@ button.ghost:hover { color: var(--text); border-color: var(--muted); }
   border-radius: 50%;
   font-size: 32px;
 }
+
+/* ── Resume existing-customer banner ─────────────────────────────────── */
+.resume-box {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--muted);
+}
+.resume-box input {
+  flex: 1 1 160px;
+  min-width: 120px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
