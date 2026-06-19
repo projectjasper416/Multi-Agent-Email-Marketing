@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -65,7 +65,11 @@ async def brief(req: BriefRequest) -> dict:
 @app.post("/api/onboarding/analyze")
 async def analyze(req: AnalyzeRequest) -> dict:
     """Step 2: run the Schema Intelligence Agent; return raw signals to review."""
-    raw_signals = await setup_flow.analyze_schema(req.customer_id)
+    try:
+        raw_signals = await setup_flow.analyze_schema(req.customer_id)
+    except ValueError as exc:
+        # Un-onboarded / unknown customer id — no brief to analyze against.
+        raise HTTPException(status_code=404, detail=str(exc))
     return {"raw_signals": raw_signals}
 
 

@@ -35,9 +35,17 @@ async def analyze_schema(customer_id: str) -> list[dict]:
     returns the raw signal list for the customer's yes/no review."""
     async with open_checkpointer_and_store() as (_, store):
         ctx = await store_service.load_customer_context(store, customer_id)
+        # Precondition: schema analysis only makes sense once a brief exists.
+        # Guard BEFORE the schema agent runs so an unknown/un-onboarded
+        # customer id can never trigger a (billed) LLM call on empty context.
+        if not ctx.get("product_context"):
+            raise ValueError(
+                f"No product brief found for customer '{customer_id}'. "
+                "Complete Step 1 (generate the brief) before analyzing the schema."
+            )
         state = {
             "customer_id": customer_id,
-            "product_context": ctx["product_context"] or "",
+            "product_context": ctx["product_context"],
         }
         result = await schema_agent_node(state, store=store)
     return result.get("raw_signals", [])
