@@ -1,21 +1,32 @@
-// Onboarding wizard — drives the three /api/onboarding endpoints in order.
-// State carried across steps: the customer_id and the raw signal list.
+// Onboarding app. Auth gates the wizard; the signed-in account IS the customer,
+// so there is no customer_id in the client — the server derives it from the
+// session cookie. Progress lives server-side: on load we ask /api/onboarding/
+// status which step this account reached and resume there.
 
 const state = {
-  customerId: null,
   rawSignals: [],
 };
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
+// ── HTTP helpers (cookies carry the session; nothing to attach by hand) ──
+async function api(url, { method = "GET", body } = {}) {
+  const opts = { method, credentials: "same-origin", headers: {} };
+  if (body !== undefined) {
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
+  }
+  return fetch(url, opts);
+}
+
 async function postJSON(url, body) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const res = await api(url, { method: "POST", body });
   if (!res.ok) {
+    if (res.status === 401) {
+      // Session expired and could not be refreshed — back to the auth gate.
+      showScreen("auth");
+    }
     let detail = `${res.status} ${res.statusText}`;
     try {
       const j = await res.json();
@@ -24,6 +35,107 @@ async function postJSON(url, body) {
     throw new Error(detail);
   }
   return res.json();
+}
+
+// ── Screens: boot → auth → app ───────────────────────────────────────────
+function showScreen(name) {
+  $("#boot").hidden = name !== "boot";
+  $("#auth-screen").hidden = name !== "auth";
+  $("#app").hidden = name !== "app";
+  $("#account").hidden = name !== "app";
+}
+
+async function boot() {
+  showScreen("boot");
+  const res = await api("/api/auth/me");
+  if (res.ok) {
+    const { user } = await res.json();
+    onAuthenticated(user);
+  } else {
+    showScreen("auth");
+  }
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────
+let authMode = "login";
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const login = mode === "login";
+  $("#auth-title").textContent = login ? "Sign in" : "Create your account";
+  $("#auth-sub").textContent = login
+    ? "Sign in to pick up your onboarding where you left off."
+    : "Your account is your workspace — onboarding saves to it automatically.";
+  $("#auth-submit").textContent = login ? "Sign in →" : "Create account →";
+  $("#auth-toggle-text").textContent = login ? "New here?" : "Already have an account?";
+  $("#auth-toggle-btn").textContent = login ? "Create an account" : "Sign in";
+  $("#auth-error").hidden = true;
+}
+
+function showAuthError(msg) {
+  const el = $("#auth-error");
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+$("#auth-toggle-btn").addEventListener("click", () =>
+  setAuthMode(authMode === "login" ? "signup" : "login")
+);
+
+$("#auth-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = $("#auth-submit");
+  const email = f.email.value.trim();
+  const password = f.password.value;
+  $("#auth-error").hidden = true;
+  btn.disabled = true;
+
+  const url = authMode === "login" ? "/api/auth/login" : "/api/auth/signup";
+  try {
+    const data = await postJSON(url, { email, password });
+    if (data.needs_confirmation) {
+      setAuthMode("login");
+      showAuthError(`Check ${data.email} to confirm your account, then sign in.`);
+      return;
+    }
+    onAuthenticated(data.user);
+  } catch (err) {
+    showAuthError(err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$("#logout-btn").addEventListener("click", async () => {
+  await api("/api/auth/logout", { method: "POST" });
+  location.reload();
+});
+
+// ── Resume: route to the furthest step this account has completed ────────
+async function onAuthenticated(user) {
+  $("#account-email").textContent = user.email || "";
+  showScreen("app");
+  await resume();
+}
+
+async function resume() {
+  const res = await api("/api/onboarding/status");
+  if (!res.ok) {
+    if (res.status === 401) showScreen("auth");
+    return; // any other error leaves the default Step 1 visible
+  }
+  const status = await res.json();
+  if (status.has_behaviors) {
+    $("#done-summary").textContent =
+      "Your approved signals are saved. Onboarding is complete.";
+    goTo("done");
+  } else if (status.has_brief) {
+    goTo(2);
+    runAnalyze();
+  } else {
+    goTo(1);
+  }
 }
 
 function goTo(step) {
@@ -47,7 +159,6 @@ $("#brief-form").addEventListener("submit", async (e) => {
   btn.disabled = true;
   btn.textContent = "Generating…";
 
-  const customerId = f.customer_id.value.trim();
   const emailSettings = {
     brand_name: f.brand_name.value.trim(),
     from_address: f.from_address.value.trim(),
@@ -65,11 +176,9 @@ $("#brief-form").addEventListener("submit", async (e) => {
 
   try {
     const { brief } = await postJSON("/api/onboarding/brief", {
-      customer_id: customerId,
       form_inputs: formInputs,
       email_settings: emailSettings,
     });
-    state.customerId = customerId;
     $("#brief-doc").textContent = brief;
     $("#brief-result").hidden = false;
     f.querySelectorAll("input, textarea").forEach((el) => (el.disabled = true));
@@ -95,29 +204,13 @@ $("#to-analyze").addEventListener("click", () => {
   runAnalyze();
 });
 
-// Resume: skip Step 1 for a customer whose brief is already stored. Sets the
-// customer id and jumps straight to schema analysis — product_context is read
-// from the Store server-side, so the brief is never regenerated/overwritten.
-$("#resume-btn").addEventListener("click", () => {
-  const id = $("#resume-id").value.trim();
-  if (!id) {
-    alert("Enter the customer ID you onboarded (e.g. taskflow).");
-    return;
-  }
-  state.customerId = id;
-  goTo(2);
-  runAnalyze();
-});
-
 // ── Step 2: analyze schema ─────────────────────────────────────────────
 async function runAnalyze() {
   $("#analyze-loading").hidden = false;
   $("#analyze-result").hidden = true;
   $("#analyze-error").hidden = true;
   try {
-    const { raw_signals } = await postJSON("/api/onboarding/analyze", {
-      customer_id: state.customerId,
-    });
+    const { raw_signals } = await postJSON("/api/onboarding/analyze");
     state.rawSignals = raw_signals || [];
     $("#analyze-count").textContent =
       `Found ${state.rawSignals.length} candidate signal${state.rawSignals.length === 1 ? "" : "s"}.`;
@@ -183,12 +276,9 @@ $("#save-signals").addEventListener("click", async (e) => {
   }));
 
   try {
-    const { approved } = await postJSON("/api/onboarding/approve", {
-      customer_id: state.customerId,
-      approvals,
-    });
+    const { approved } = await postJSON("/api/onboarding/approve", { approvals });
     $("#done-summary").textContent =
-      `${approved.length} signal${approved.length === 1 ? "" : "s"} approved for ${state.customerId}.`;
+      `${approved.length} signal${approved.length === 1 ? "" : "s"} approved.`;
     goTo("done");
   } catch (err) {
     alert("Could not save signals:\n\n" + err.message);
@@ -196,3 +286,7 @@ $("#save-signals").addEventListener("click", async (e) => {
     btn.textContent = "Finish setup →";
   }
 });
+
+// ── Start ────────────────────────────────────────────────────────────────
+setAuthMode("login");
+boot();

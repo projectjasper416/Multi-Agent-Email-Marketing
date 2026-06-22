@@ -15,8 +15,43 @@
         <p>Customer onboarding</p>
       </div>
     </div>
+    <div class="account" id="account" hidden>
+      <span class="email" id="account-email"></span>
+      <button type="button" class="ghost" id="logout-btn">Log out</button>
+    </div>
   </header>
 
+  <!-- ── Boot: checking the session before we know which screen to show ── -->
+  <div class="boot" id="boot">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- ── Auth gate: sign in / create account ──────────────────────────── -->
+  <section class="auth-screen" id="auth-screen" hidden>
+    <div class="auth-card">
+      <h2 id="auth-title">Sign in</h2>
+      <p class="hint" id="auth-sub">Sign in to pick up your onboarding where you left off.</p>
+      <form id="auth-form">
+        <label>Email
+          <input name="email" type="email" required placeholder="you@company.com" />
+        </label>
+        <label>Password
+          <input name="password" type="password" required minlength="6" placeholder="••••••••" />
+        </label>
+        <p class="err" id="auth-error" hidden></p>
+        <div class="actions">
+          <button type="submit" class="primary" id="auth-submit">Sign in →</button>
+        </div>
+      </form>
+      <p class="auth-toggle">
+        <span id="auth-toggle-text">New here?</span>
+        <button type="button" class="linkish" id="auth-toggle-btn">Create an account</button>
+      </p>
+    </div>
+  </section>
+
+  <!-- ── App: the onboarding wizard, shown only once authenticated ─────── -->
+  <div id="app" hidden>
   <ol class="steps" id="stepper">
     <li class="step is-active" data-step="1"><span class="num">1</span> Product brief</li>
     <li class="step" data-step="2"><span class="num">2</span> Schema analysis</li>
@@ -26,22 +61,12 @@
   <main>
     <!-- ── Step 1: product form → generate_brief ───────────────────────── -->
     <section class="panel" id="panel-1">
-      <div class="resume-box">
-        <span>Already generated a brief for this customer?</span>
-        <input id="resume-id" placeholder="taskflow" />
-        <button type="button" class="ghost" id="resume-btn">Resume → analyze schema</button>
-      </div>
-
       <h2>Tell us about your product</h2>
       <p class="hint">These answers are synthesized by Claude into your
         <code>product_context.md</code> — the brief every agent reasons from.</p>
 
       <form id="brief-form">
         <div class="grid">
-          <label>Customer ID
-            <input name="customer_id" required placeholder="acme" />
-            <small>Namespaces all of this customer's stored memory.</small>
-          </label>
           <label>Brand name
             <input name="brand_name" required placeholder="Acme" />
           </label>
@@ -155,6 +180,7 @@
         brief, schema map, and approved signals.</p>
     </section>
   </main>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>

@@ -21,6 +21,26 @@ from onboarding.context_generator import generate_product_context
 from agents.schema_agent import schema_agent_node
 
 
+async def get_status(customer_id: str) -> dict:
+    """Report which setup artifacts already exist for this customer.
+
+    The Store is the source of truth for progress: each step persists one
+    document, so the furthest completed step is derivable from which documents
+    are present. The web layer uses this to resume the wizard after a reload (or
+    a login on any device) instead of restarting at Step 1. Returns presence
+    flags plus the already-generated brief so the UI can rehydrate without
+    re-running anything.
+    """
+    async with open_checkpointer_and_store() as (_, store):
+        ctx = await store_service.load_customer_context(store, customer_id)
+    return {
+        "has_brief": bool(ctx.get("product_context")),
+        "has_schema": bool(ctx.get("schema_map")),
+        "has_behaviors": ctx.get("approved_behaviors") is not None,
+        "product_context": ctx.get("product_context"),
+    }
+
+
 async def generate_brief(customer_id: str, form_inputs: dict, email_settings: dict) -> str:
     """Step 1: synthesize and persist product_context.md + email settings."""
     brief = generate_product_context(form_inputs)

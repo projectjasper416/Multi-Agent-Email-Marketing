@@ -31,14 +31,25 @@ CUSTOMER_ID: str = _get("CUSTOMER_ID", "")  # namespaces all Store reads/writes
 # ── Supabase ──────────────────────────────────────────────────────────
 SUPABASE_URL: str = _get("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY: str = _get("SUPABASE_SERVICE_ROLE_KEY", "")
+# Anon (public) key — used ONLY by the onboarding web auth layer to talk to
+# Supabase Auth (GoTrue): sign-up, sign-in, JWT verification, token refresh.
+# Deliberately separate from the service-role key: auth runs as the end user,
+# never with RLS bypassed.
+SUPABASE_ANON_KEY: str = _get("SUPABASE_ANON_KEY", "")
 # Raw Postgres connection string for the checkpointer + store (psycopg).
 SUPABASE_DB_URL: str = _get("SUPABASE_DB_URL", "")
+
+# ── Onboarding web auth ───────────────────────────────────────────────
+# httpOnly session cookies. Set WEB_COOKIE_SECURE=true behind HTTPS in prod so
+# the cookie is only sent over TLS; left false for local http dev, otherwise the
+# browser silently refuses to store a Secure cookie on http://localhost.
+WEB_COOKIE_SECURE: bool = _get("WEB_COOKIE_SECURE", "false").lower() == "true"
 
 # ── LLM ───────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY: str = _get("ANTHROPIC_API_KEY", "")
 # Pinned model id — no floating aliases. A model bump requires a side-by-side
 # decision-quality audit before changing this (TDD 2.2).
-MODEL: str = "claude-sonnet-4-6"
+MODEL: str = "claude-haiku-4-5-20251001"
 # Must comfortably fit the schema agent's one-shot submit_schema_map payload
 # (full schema_map.md + raw_signals array). 2048 truncated it mid-tool-call,
 # yielding empty args and zero signals. claude-sonnet-4-6 supports far more.
