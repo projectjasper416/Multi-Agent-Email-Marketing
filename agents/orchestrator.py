@@ -28,6 +28,30 @@ async def orchestrator_node(state: GraphState, *, store) -> dict:
 
     ctx = await store_service.load_customer_context(store, customer_id)
 
+    # Onboarding guard. A daily/planning run requires a fully-onboarded
+    # customer. If the customer_id does not resolve to onboarding memory — e.g.
+    # the run's CUSTOMER_ID does not match the auth uid used during onboarding —
+    # every document comes back absent. Fail loud here rather than silently
+    # proceeding on empty context (which would target the wrong product) or
+    # auto-running the schema agent to bootstrap from nothing. Building these
+    # documents is onboarding's job alone (onboarding/setup_flow.py).
+    missing = [
+        name
+        for name, value in (
+            ("product_context", ctx["product_context"]),
+            ("schema_map", ctx["schema_map"]),
+            ("approved_behaviors", ctx["approved_behaviors"]),
+        )
+        if value is None
+    ]
+    if missing:
+        raise RuntimeError(
+            f"Customer '{customer_id}' is not onboarded (missing: "
+            f"{', '.join(missing)}). Complete onboarding for this customer, or "
+            "verify CUSTOMER_ID matches the auth uid used during onboarding. The "
+            "planning run will not auto-run schema analysis."
+        )
+
     refresh_needed = _needs_refresh(ctx)
 
     return {
