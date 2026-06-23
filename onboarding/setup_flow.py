@@ -33,11 +33,13 @@ async def get_status(customer_id: str) -> dict:
     """
     async with open_checkpointer_and_store() as (_, store):
         ctx = await store_service.load_customer_context(store, customer_id)
+        raw_signals = await store_service.load_raw_signals(store, customer_id)
     return {
         "has_brief": bool(ctx.get("product_context")),
         "has_schema": bool(ctx.get("schema_map")),
         "has_behaviors": ctx.get("approved_behaviors") is not None,
         "product_context": ctx.get("product_context"),
+        "raw_signals": raw_signals,
     }
 
 
@@ -68,7 +70,9 @@ async def analyze_schema(customer_id: str) -> list[dict]:
             "product_context": ctx["product_context"],
         }
         result = await schema_agent_node(state, store=store)
-    return result.get("raw_signals", [])
+        raw_signals = result.get("raw_signals", [])
+        await store_service.save_raw_signals(store, customer_id, raw_signals)
+    return raw_signals
 
 
 async def save_approved_signals(customer_id: str, approvals: list[dict]) -> list[dict]:

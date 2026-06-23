@@ -130,9 +130,24 @@ async function resume() {
     $("#done-summary").textContent =
       "Your approved signals are saved. Onboarding is complete.";
     goTo("done");
-  } else if (status.has_brief) {
+  } else if (status.has_schema && status.raw_signals) {
+    // Schema already analyzed and signals are stored — restore step 2 without re-running.
+    goTo(2);
+    restoreAnalyze(status.raw_signals);
+  } else if (status.has_schema) {
+    // Schema exists but signals weren't stored (pre-migration data) — re-run to fetch them.
     goTo(2);
     runAnalyze();
+  } else if (status.has_brief) {
+    // Brief exists but schema not yet run — show step 1 with the saved brief so
+    // the user decides when to run schema analysis.
+    goTo(1);
+    if (status.product_context) {
+      $("#brief-doc").textContent = status.product_context;
+      $("#brief-result").hidden = false;
+      $("#brief-form").querySelectorAll("input, textarea").forEach((el) => (el.disabled = true));
+      $("#brief-form").querySelector("button[type=submit]").hidden = true;
+    }
   } else {
     goTo(1);
   }
@@ -205,6 +220,15 @@ $("#to-analyze").addEventListener("click", () => {
 });
 
 // ── Step 2: analyze schema ─────────────────────────────────────────────
+function restoreAnalyze(signals) {
+  state.rawSignals = signals || [];
+  $("#analyze-count").textContent =
+    `Found ${state.rawSignals.length} candidate signal${state.rawSignals.length === 1 ? "" : "s"}.`;
+  $("#analyze-loading").hidden = true;
+  $("#analyze-result").hidden = false;
+  $("#analyze-error").hidden = true;
+}
+
 async function runAnalyze() {
   $("#analyze-loading").hidden = false;
   $("#analyze-result").hidden = true;

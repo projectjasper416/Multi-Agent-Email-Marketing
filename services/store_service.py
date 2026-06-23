@@ -27,6 +27,7 @@ DOC_PRODUCT = "product_context"
 DOC_SCHEMA = "schema_map"
 DOC_BEHAVIORS = "approved_behaviors"
 DOC_EMAIL = "email_settings"
+DOC_SIGNALS = "raw_signals"
 ARCHIVE_SCHEMA = "schema_map_archive"
 
 # Marker that separates Claude-owned content from the never-overwrite section.
@@ -78,6 +79,15 @@ async def save_product_context(store, customer_id: str, text: str) -> None:
 
 async def save_approved_behaviors(store, customer_id: str, items: list[dict]) -> None:
     await store.aput(_ns(customer_id, DOC_BEHAVIORS), "doc", {"items": items})
+
+
+async def save_raw_signals(store, customer_id: str, signals: list[dict]) -> None:
+    await store.aput(_ns(customer_id, DOC_SIGNALS), "doc", {"items": signals})
+
+
+async def load_raw_signals(store, customer_id: str) -> list[dict] | None:
+    val = await _get_value(store, customer_id, DOC_SIGNALS)
+    return val.get("items") if val else None
 
 
 async def save_schema_map(
