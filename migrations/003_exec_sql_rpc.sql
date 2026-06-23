@@ -17,12 +17,18 @@ set search_path = public
 as $$
 declare
     result jsonb;
+    cleaned text;
 begin
     -- Guard: read-only. Reject anything that isn't a plain SELECT/WITH.
-    -- ltrim with an explicit char set so leading newlines/tabs (not just spaces)
-    -- are stripped — callers pass indented, multi-line query blocks.
-    if not (lower(ltrim(query, E' \t\n\r')) like 'select%'
-            or lower(ltrim(query, E' \t\n\r')) like 'with%') then
+    -- Agents routinely prefix a query with an explanatory SQL comment, so strip
+    -- a leading run of whitespace, line comments (-- ... up to newline) and block
+    -- comments (/* ... */) before checking. We only normalize for the CHECK; the
+    -- original query (comment and all) is what actually executes.
+    cleaned := lower(ltrim(
+        regexp_replace(query, '^(\s+|--[^\n]*(\n|$)|/\*.*?\*/)+', ''),
+        E' \t\n\r'
+    ));
+    if not (cleaned like 'select%' or cleaned like 'with%') then
         raise exception 'exec_sql only permits read queries';
     end if;
 

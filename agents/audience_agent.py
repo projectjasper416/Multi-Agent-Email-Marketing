@@ -97,11 +97,21 @@ async def audience_agent_node(state: GraphState, *, store) -> dict:
         "Query the database and submit one profile per remaining candidate user."
     )
 
+    def _run_sql_with_retry(i: dict) -> Any:
+        from postgrest.exceptions import APIError
+        try:
+            return db.run_sql(i["sql"])
+        except APIError as exc:
+            # DB rejected the query (bad SQL, GROUP BY violation, unknown column,
+            # etc.) — return the error to the agent so it can rewrite and retry.
+            # Other exceptions (network, auth) are not caught and still propagate.
+            return {"error": f"SQL error: {exc.message}"}
+
     handlers: dict[str, Any] = {
         "select_rows": lambda i: db.select_rows(
             i["table"], i.get("columns", "*"), i.get("filters"), i.get("limit")
         ),
-        "run_sql": lambda i: db.run_sql(i["sql"]),
+        "run_sql": _run_sql_with_retry,
         "submit_profiles": lambda i: {"received": True},
     }
 
